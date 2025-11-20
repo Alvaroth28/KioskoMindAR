@@ -2,82 +2,39 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <!-- Viewport optimizado para móvil / iOS -->
-    <meta
-      name="viewport"
-      content="width=device-width, height=device-height, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>MindAR Video sobre imagen</title>
+    <title>MindAR Video</title>
 
-    <!-- A-Frame + MindAR (versión image tracking para A-Frame) -->
+    <!-- A-Frame + MindAR -->
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
     <style>
-      html,
       body {
         margin: 0;
-        padding: 0;
-        width: 100%;
-        height: 100%;
         overflow: hidden;
         background: #000;
-      }
-
-      a-scene {
-        position: fixed !important;
-        inset: 0;
-        width: 100vw !important;
-        height: 100vh !important;
-      }
-
-      .a-canvas {
-        position: fixed !important;
-        inset: 0 !important;
-        width: 100vw !important;
-        height: 100vh !important;
-      }
-
-      #hint {
-        position: fixed;
-        bottom: 12px;
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 6px 12px;
-        border-radius: 999px;
-        background: rgba(0, 0, 0, 0.6);
-        color: #fff;
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-          sans-serif;
-        font-size: 13px;
-        z-index: 9999;
-      }
-      #hint.hidden {
-        display: none;
       }
     </style>
   </head>
 
   <body>
-    <!-- Mensaje para forzar toque inicial (clave para iOS) -->
-    <div id="hint">Toca la pantalla una vez y luego apunta al target.</div>
-
     <a-scene
       mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind; filterMinCF: 0.001; filterBeta: 0.1; warmupTolerance: 1; missTolerance: 5;"
       color-space="sRGB"
       renderer="colorManagement: true, physicallyCorrectLights"
       vr-mode-ui="enabled: false"
-      device-orientation-permission-ui="enabled: false"
-    >
+      device-orientation-permission-ui="enabled: false">
+
       <a-assets>
-        <!-- Imagen de referencia del target (opcional) -->
+        <!-- Imagen del target (opcional) -->
         <img
           id="card"
           src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png"
         />
 
-        <!-- Tu video local -->
+        <!-- TU VIDEO local -->
         <video
           id="cardVideo"
           src="assets/Circo.mp4"
@@ -86,8 +43,8 @@
           muted
           playsinline
           webkit-playsinline
-          crossorigin="anonymous"
-        ></video>
+          crossorigin="anonymous">
+        </video>
       </a-assets>
 
       <!-- Cámara controlada por MindAR -->
@@ -99,90 +56,68 @@
         <a-plane
           src="#card"
           position="0 0 0"
-          height="0.552"
           width="1"
-          rotation="0 0 0"
-        ></a-plane>
+          height="0.552"
+          rotation="0 0 0">
+        </a-plane>
 
-        <!-- Plano del video justo encima -->
+        <!-- Plano de video, justo encima -->
         <a-video
           id="cardVideoPlane"
           src="#cardVideo"
           position="0 0 0.01"
           width="1"
           height="0.552"
-          rotation="0 0 0"
-        ></a-video>
+          rotation="0 0 0">
+        </a-video>
       </a-entity>
     </a-scene>
 
     <script>
-      const hint = document.getElementById("hint");
-      const sceneEl = document.querySelector("a-scene");
-      const targetEl = document.querySelector("#target-0");
-      const videoEl = document.querySelector("#cardVideo");
+      document.addEventListener("DOMContentLoaded", () => {
+        const sceneEl = document.querySelector("a-scene");
+        const targetEl = document.querySelector("#target-0");
+        const videoEl = document.querySelector("#cardVideo");
+        const videoPlane = document.querySelector("#cardVideoPlane");
 
-      // --- 1) iOS / móvil: desbloquear vídeo mediante interacción del usuario ---
-      let userInteracted = false;
+        // DEBUG: verifica que el video cargue bien
+        videoEl.addEventListener("loadeddata", () => {
+          console.log("Video cargado correctamente");
+        });
+        videoEl.addEventListener("error", (e) => {
+          console.error("Error cargando el video", e);
+        });
 
-      const unlockVideo = () => {
-        if (userInteracted) return;
-        userInteracted = true;
-        hint.classList.add("hidden");
+        // Cuando la escena está lista, enganchamos eventos del target
+        sceneEl.addEventListener("loaded", () => {
+          console.log("Escena cargada, esperando target...");
 
-        // Truco iOS: reproducir y pausar inmediatamente dentro del gesto del usuario
-        videoEl
-          .play()
-          .then(() => {
+          // Target detectado
+          targetEl.addEventListener("targetFound", () => {
+            console.log("Target encontrado, intento reproducir video...");
+            videoEl.play().catch((e) => {
+              // iOS casi seguro va a entrar aquí primero
+              console.warn("Autoplay bloqueado, toca el video:", e);
+            });
+          });
+
+          // Target perdido
+          targetEl.addEventListener("targetLost", () => {
+            console.log("Target perdido, pauso video");
+            if (!videoEl.paused) videoEl.pause();
+          });
+        });
+
+        // Fallback PARA iOS: tocar el plano de video para reproducir / pausar
+        videoPlane.addEventListener("click", () => {
+          if (videoEl.paused) {
+            videoEl.play().catch((e) => {
+              console.warn("No se pudo reproducir al tocar:", e);
+            });
+          } else {
             videoEl.pause();
-            console.log("Vídeo desbloqueado por interacción de usuario.");
-          })
-          .catch((e) => {
-            console.warn("No se pudo desbloquear el vídeo:", e);
-          });
-
-        window.removeEventListener("click", unlockVideo);
-        window.removeEventListener("touchstart", unlockVideo);
-      };
-
-      window.addEventListener("click", unlockVideo);
-      window.addEventListener("touchstart", unlockVideo);
-
-      // --- 2) Eventos de MindAR para tracking y vídeo ---
-
-      // Debug: ver si el vídeo carga bien
-      videoEl.addEventListener("loadeddata", () => {
-        console.log("Vídeo cargado correctamente.");
-      });
-      videoEl.addEventListener("error", (e) => {
-        console.error("Error cargando el vídeo", e);
-      });
-
-      // Cuando MindAR está listo
-      sceneEl.addEventListener("arReady", () => {
-        console.log("MindAR listo, apunta al target.");
-      });
-
-      sceneEl.addEventListener("arError", (e) => {
-        console.error("Error de MindAR:", e);
-      });
-
-      // Cuando el target se detecta
-      targetEl.addEventListener("targetFound", () => {
-        console.log("Target encontrado");
-        if (userInteracted && videoEl.paused) {
-          videoEl.play().catch((e) => {
-            console.warn("No se pudo reproducir el vídeo al encontrar el target:", e);
-          });
-        } else if (!userInteracted) {
-          console.log("Falta interacción del usuario para reproducir el vídeo.");
-        }
-      });
-
-      // Cuando se pierde el target
-      targetEl.addEventListener("targetLost", () => {
-        console.log("Target perdido");
-        if (!videoEl.paused) videoEl.pause();
+          }
+        });
       });
     </script>
   </body>
