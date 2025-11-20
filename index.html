@@ -19,7 +19,7 @@
   </head>
   <body>
     <a-scene
-      mindar-image="imageTargetSrc: assets/targets.mind; filterMinCF: 0.001; filterBeta: 0.01; warmupTolerance: 1; missTolerance: 2;"
+      mindar-image="imageTargetSrc: assets/targets.mind; filterMinCF: 0.001; filterBeta: 0.1; warmupTolerance: 1; missTolerance: 5;"
       color-space="sRGB"
       renderer="colorManagement: true, physicallyCorrectLights"
       vr-mode-ui="enabled: false"
@@ -61,7 +61,7 @@
           src="#cardVideo"
           position="0 0 0.01"
           width="1"
-          height="0.552"
+          height="0.7"
           rotation="0 0 0">
         </a-video>
       </a-entity>
