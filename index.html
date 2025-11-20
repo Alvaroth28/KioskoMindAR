@@ -2,7 +2,10 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, user-scalable=no"
+    />
 
     <title>MindAR Video</title>
 
@@ -21,20 +24,27 @@
 
   <body>
     <a-scene
-      mindar-image="imageTargetSrc:assets\targets.mind;"
+      mindar-image="
+        imageTargetSrc: assets/targets.mind;
+        filterMinCF: 0.0005;
+        filterBeta: 0.01;
+        warmupTolerance: 3;
+        missTolerance: 6;
+        maxTrack: 1;
+      "
       color-space="sRGB"
       renderer="colorManagement: true, physicallyCorrectLights"
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: false">
 
       <a-assets>
-        <!-- Imagen del target (opcional) -->
+        <!-- Imagen del target SOLO de referencia visual (pon aquí tu .png del marcador) -->
         <img
           id="card"
-          src="assets\targets.mind"
+          src="assets/card.png"
         />
 
-        <!-- TU VIDEO local -->
+        <!-- Tu VIDEO local -->
         <video
           id="cardVideo"
           src="assets/Circo.mp4"
@@ -52,7 +62,7 @@
 
       <!-- Entidad anclada al target -->
       <a-entity id="target-0" mindar-image-target="targetIndex: 0">
-        <!-- Plano del target (opcional) -->
+        <!-- Plano del target (opcional, te ayuda a depurar) -->
         <a-plane
           src="#card"
           position="0 0 0"
@@ -61,13 +71,13 @@
           rotation="0 0 0">
         </a-plane>
 
-        <!-- Plano de video, justo encima -->
+        <!-- Plano de video, un poquito más grande para ocultar bordes “bailones” -->
         <a-video
           id="cardVideoPlane"
           src="#cardVideo"
-          position="0 0 0.01"
-          width="1"
-          height="0.65"
+          position="0 0 0.011"
+          width="1.02"
+          height="0.66"
           rotation="0 0 0">
         </a-video>
       </a-entity>
@@ -80,7 +90,27 @@
         const videoEl = document.querySelector("#cardVideo");
         const videoPlane = document.querySelector("#cardVideoPlane");
 
-        // DEBUG: verifica que el video cargue bien
+        // --- Desbloqueo discreto para iOS / móviles ---
+        let userInteracted = false;
+
+        const unlockVideo = () => {
+          if (userInteracted) return;
+          userInteracted = true;
+          // Intento de “desbloqueo silencioso” (iOS)
+          videoEl.play()
+            .then(() => {
+              videoEl.pause();
+              console.log("Video desbloqueado por interacción de usuario.");
+            })
+            .catch(() => {
+              // si falla, no pasa nada, fallback al click en el plano
+            });
+        };
+
+        window.addEventListener("touchstart", unlockVideo, { once: true });
+        window.addEventListener("click", unlockVideo, { once: true });
+
+        // DEBUG: verificar carga del vídeo
         videoEl.addEventListener("loadeddata", () => {
           console.log("Video cargado correctamente");
         });
@@ -88,7 +118,6 @@
           console.error("Error cargando el video", e);
         });
 
-        // Cuando la escena está lista, enganchamos eventos del target
         sceneEl.addEventListener("loaded", () => {
           console.log("Escena cargada, esperando target...");
 
@@ -96,8 +125,7 @@
           targetEl.addEventListener("targetFound", () => {
             console.log("Target encontrado, intento reproducir video...");
             videoEl.play().catch((e) => {
-              // iOS casi seguro va a entrar aquí primero
-              console.warn("Autoplay bloqueado, toca el video:", e);
+              console.warn("Autoplay bloqueado, toca el video o el plano:", e);
             });
           });
 
