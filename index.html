@@ -1,189 +1,25 @@
-<!DOCTYPE html>
-<html lang="es">
+
+<html>
   <head>
-    <meta charset="UTF-8" />
-
-    <!-- Viewport bien para iPad (pantalla completa) -->
-    <meta
-      name="viewport"
-      content="width=device-width, height=device-height, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
-    />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-
-    <title>MindAR + Video</title>
-
-    <!-- IMPORTANTE: orden igual a la doc oficial -->
-    <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/dist/mindar-image.prod.js"></script>
-    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-
-    <style>
-      html,
-      body {
-        margin: 0;
-        padding: 0;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-        background: #000;
-      }
-
-      a-scene {
-        position: fixed !important;
-        inset: 0;
-        width: 100vw !important;
-        height: 100vh !important;
-      }
-
-      /* Canvas de A-Frame a pantalla completa (por si acaso) */
-      .a-canvas {
-        position: fixed !important;
-        inset: 0 !important;
-        width: 100vw !important;
-        height: 100vh !important;
-      }
-
-      /* Loader propio */
-      #loader {
-        position: fixed;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #000;
-        color: #fff;
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-          sans-serif;
-        z-index: 9999;
-      }
-      #loader.hidden {
-        display: none;
-      }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
   </head>
-
   <body>
-    <div id="loader">Cargando AR…</div>
-
-    <a-scene
-      mindar-image="imageTargetSrc: ./targets.mind; uiLoading: false; uiScanning: true; uiError: true;"
-      color-space="sRGB"
-      renderer="colorManagement: true, physicallyCorrectLights"
-      vr-mode-ui="enabled: false"
-      device-orientation-permission-ui="enabled: false"
-    >
+    <a-scene mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
       <a-assets>
-        <!-- No es obligatorio, solo referencia -->
-        <img
-          id="card"
-          src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png"
-        />
-
-        <!-- TU VIDEO -->
-        <video
-          id="cardVideo"
-          src="assets/Circo.mp4"
-          preload="auto"
-          loop
-          muted
-          playsinline
-          webkit-playsinline
-          crossorigin="anonymous"
-        ></video>
+	<img id="card" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png" />
+	<a-asset-item id="avatarModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/softmind/scene.gltf"></a-asset-item>
       </a-assets>
 
-      <!-- Cámara controlada por MindAR -->
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <!-- Contenido del target -->
-      <a-entity id="target-0" mindar-image-target="targetIndex: 0">
-        <!-- Plano con la imagen del target -->
-        <a-plane
-          src="#card"
-          position="0 0 0"
-          height="0.552"
-          width="1"
-          rotation="0 0 0"
-        ></a-plane>
-
-        <!-- Plano del video encima -->
-        <a-video
-          id="cardVideoPlane"
-          src="#cardVideo"
-          position="0 0 0.01"
-          width="1"
-          height="0.552"
-          rotation="0 0 0"
-        ></a-video>
+      <a-entity mindar-image-target="targetIndex: 0">
+        <a-plane src="#card" position="0 0 0" height="0.552" width="1" rotation="0 0 0"></a-plane>
+        <a-gltf-model rotation="0 0 0 " position="0 0 0.1" scale="0.005 0.005 0.005" src="#avatarModel"
+          animation="property: position; to: 0 0.1 0.1; dur: 1000; easing: easeInOutQuad; loop: true; dir: alternate"
+        >
       </a-entity>
     </a-scene>
-
-    <script>
-      const loader = document.getElementById("loader");
-      const sceneEl = document.querySelector("a-scene");
-      const targetEl = document.querySelector("#target-0");
-      const videoEl = document.querySelector("#cardVideo");
-
-      // DEBUG: ver si el video carga
-      videoEl.addEventListener("loadeddata", () => {
-        console.log("Video cargado correctamente");
-      });
-      videoEl.addEventListener("error", (e) => {
-        console.error("Error cargando el video", e);
-        loader.textContent = "Error cargando el video (revisa ruta assets/Circo.mp4)";
-      });
-
-      // iOS / Android: asegurarnos de que hubo interacción
-      let userInteracted = false;
-      const unlockVideo = () => {
-        userInteracted = true;
-        console.log("Interacción de usuario detectada, video desbloqueado");
-        window.removeEventListener("click", unlockVideo);
-        window.removeEventListener("touchstart", unlockVideo);
-      };
-      window.addEventListener("click", unlockVideo);
-      window.addEventListener("touchstart", unlockVideo);
-
-      // Eventos de MindAR
-      sceneEl.addEventListener("arReady", () => {
-        console.log("MindAR listo");
-        loader.classList.add("hidden");
-      });
-
-      sceneEl.addEventListener("arError", (e) => {
-        console.error("MindAR error", e);
-        loader.textContent =
-          "Error iniciando AR. Revisa permisos de cámara y que sea HTTPS / localhost.";
-      });
-
-      sceneEl.addEventListener("camera-init", () => {
-        console.log("Cámara inicializada");
-      });
-
-      sceneEl.addEventListener("camera-error", (e) => {
-        console.error("Error en la cámara", e);
-        loader.textContent =
-          "No se pudo acceder a la cámara. Revisa permisos del navegador.";
-      });
-
-      // Target detectado
-      targetEl.addEventListener("targetFound", () => {
-        console.log("Target encontrado");
-        if (userInteracted && videoEl.paused) {
-          videoEl.play().catch((e) => {
-            console.warn("No se pudo reproducir el video:", e);
-          });
-        } else if (!userInteracted) {
-          console.log("Falta interacción del usuario para poder reproducir el video.");
-        }
-      });
-
-      // Target perdido
-      targetEl.addEventListener("targetLost", () => {
-        console.log("Target perdido");
-        if (!videoEl.paused) videoEl.pause();
-      });
-    </script>
   </body>
 </html>
