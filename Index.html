@@ -1,22 +1,126 @@
-
-<html>
+<!DOCTYPE html>
+<html lang="es">
   <head>
+    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- CSP ajustada para permitir MindAR / A-Frame en modo demo -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+        default-src 'self' https: data: blob:;
+        script-src 'self' https: 'unsafe-eval' 'unsafe-inline';
+        style-src 'self' https: 'unsafe-inline';
+        img-src 'self' https: data: blob:;
+        media-src 'self' https: data: blob:;
+        connect-src 'self' https: wss:;
+      "
+    >
+
+    <!-- A-Frame + MindAR -->
     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+      }
+    </style>
   </head>
+
   <body>
-    <a-scene mindar-image="imageTargetSrc: assets\targets.mind;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+    <a-scene
+      mindar-image="imageTargetSrc: assets/targets.mind; filterMinCF: 0.001; filterBeta: 0.01; warmupTolerance: 1; missTolerance: 2;"
+      color-space="sRGB"
+      renderer="colorManagement: true, physicallyCorrectLights"
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false">
+
       <a-assets>
-        <img id="card" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png" />
-        <a-asset-item id="avatarModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/softmind/scene.gltf"></a-asset-item>
+        <!-- Referencia visual del target (opcional) -->
+        <img
+          id="card"
+          src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png"
+        />
+
+        <!-- VIDEO: coloca aquí tu propio archivo o URL HTTPS -->
+        <video
+          id="cardVideo"
+          src="assets/Circo.mp4"
+          preload="auto"
+          loop
+          muted
+          playsinline
+          webkit-playsinline
+          crossorigin="anonymous">
+        </video>
       </a-assets>
 
-      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-      <a-entity mindar-image-target="targetIndex: 0">
-        <a-plane src="#card" position="0 0 0" height="0.552" width="1" rotation="0 0 0"></a-plane>
-        <a-gltf-model rotation="0 0 0 " position="0 0 0.1" scale="0.005 0.005 0.005" src="#avatarModel" animation="property: position; to: 0 0.1 0.1; dur: 1000; easing: easeInOutQuad; loop: true; dir: alternate">
+      <!-- Cámara controlada por MindAR -->
+      <a-camera
+        position="0 0 0"
+        look-controls="enabled: false">
+      </a-camera>
+
+      <!-- Contenido vinculado al targetIndex 0 -->
+      <a-entity id="target-0" mindar-image-target="targetIndex: 0">
+        <!-- Plano con la imagen del target (opcional) -->
+        <a-plane
+          src="#card"
+          position="0 0 0"
+          height="0.552"
+          width="1"
+          rotation="0 0 0">
+        </a-plane>
+
+        <!-- Plano de video sobre el target -->
+        <a-video
+          id="cardVideoPlane"
+          src="#cardVideo"
+          position="0 0 0.01"
+          width="1"
+          height="0.552"
+          rotation="0 0 0">
+        </a-video>
       </a-entity>
     </a-scene>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const sceneEl = document.querySelector("a-scene");
+        const targetEl = document.querySelector("#target-0");
+        const videoEl = document.querySelector("#cardVideo");
+
+        // iOS / Android: asegurarnos de que hubo interacción del usuario
+        let userInteracted = false;
+        const unlockVideo = () => {
+          userInteracted = true;
+          window.removeEventListener("click", unlockVideo);
+          window.removeEventListener("touchstart", unlockVideo);
+        };
+        window.addEventListener("click", unlockVideo, { once: true });
+        window.addEventListener("touchstart", unlockVideo, { once: true });
+
+        sceneEl.addEventListener("loaded", () => {
+          // Target detectado
+          targetEl.addEventListener("targetFound", () => {
+            if (userInteracted && videoEl.paused) {
+              videoEl.play().catch((e) => {
+                console.warn("No se pudo reproducir el video:", e);
+              });
+            } else if (!userInteracted) {
+              console.log("Esperando interacción del usuario para reproducir el video.");
+            }
+          });
+
+          // Target perdido
+          targetEl.addEventListener("targetLost", () => {
+            if (!videoEl.paused) videoEl.pause();
+          });
+        });
+      });
+    </script>
   </body>
 </html>
