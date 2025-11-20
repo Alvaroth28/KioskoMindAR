@@ -7,7 +7,7 @@
       content="width=device-width, initial-scale=1, user-scalable=no"
     />
 
-    <title>MindAR Video</title>
+    <title>MindAR Video Suavizado</title>
 
     <!-- A-Frame + MindAR -->
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
@@ -26,11 +26,11 @@
     <a-scene
       mindar-image="
         imageTargetSrc: assets/targets.mind;
-       filterMinCF: 0.0001;
-filterBeta: 0.001;
-warmupTolerance: 3;
-missTolerance: 8;
-
+        filterMinCF: 0.0001;
+        filterBeta: 0.001;
+        warmupTolerance: 3;
+        missTolerance: 8;
+        maxTrack: 1;
       "
       color-space="sRGB"
       renderer="colorManagement: true, physicallyCorrectLights"
@@ -38,7 +38,7 @@ missTolerance: 8;
       device-orientation-permission-ui="enabled: false">
 
       <a-assets>
-        <!-- Imagen del target SOLO de referencia visual (pon aquí tu .png del marcador) -->
+        <!-- Imagen del target SOLO referencia visual (mismo diseño que usaste para el .mind) -->
         <img
           id="card"
           src="assets/card.png"
@@ -60,9 +60,15 @@ missTolerance: 8;
       <!-- Cámara controlada por MindAR -->
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <!-- Entidad anclada al target -->
-      <a-entity id="target-0" mindar-image-target="targetIndex: 0">
-        <!-- Plano del target (opcional, te ayuda a depurar) -->
+      <!-- Target "puro" que recibe el tracking de MindAR -->
+      <a-entity id="target-0" mindar-image-target="targetIndex: 0"></a-entity>
+
+      <!-- Anchor SUAVE que sigue al target con lerp/slerp -->
+      <a-entity
+        id="smooth-anchor"
+        smooth-follow="target: #target-0; lerpPosition: 0.2; lerpRotation: 0.2">
+
+        <!-- Plano del target (opcional, para debug) -->
         <a-plane
           src="#card"
           position="0 0 0"
@@ -71,19 +77,60 @@ missTolerance: 8;
           rotation="0 0 0">
         </a-plane>
 
-        <!-- Plano de video, un poquito más grande para ocultar bordes “bailones” -->
+        <!-- Plano de video, un pelín más grande para ocultar bordes -->
         <a-video
           id="cardVideoPlane"
           src="#cardVideo"
           position="0 0 0.011"
-          width="1.02"
-          height="0.66"
+          width="1.05"
+          height="0.68"
           rotation="0 0 0">
         </a-video>
       </a-entity>
     </a-scene>
 
     <script>
+      // Componente para suavizar la pose de un entity que sigue a otro (target de MindAR)
+      AFRAME.registerComponent("smooth-follow", {
+        schema: {
+          target: { type: "selector" },
+          lerpPosition: { type: "number", default: 0.1 }, // 0–1
+          lerpRotation: { type: "number", default: 0.1 }  // 0–1
+        },
+        init: function () {
+          this.targetEl = this.data.target;
+          this.tempPos = new THREE.Vector3();
+          this.tempQuat = new THREE.Quaternion();
+
+          if (!this.targetEl) {
+            console.warn("[smooth-follow] No se asignó 'target'.");
+          }
+        },
+        tick: function () {
+          if (!this.targetEl) return;
+
+          const targetObj = this.targetEl.object3D;
+          const obj = this.el.object3D;
+
+          // Si el target no está visible, escondemos también el anchor suave
+          if (!targetObj.visible) {
+            obj.visible = false;
+            return;
+          }
+
+          obj.visible = true;
+
+          // Posición y rotación objetivo (en mundo)
+          targetObj.getWorldPosition(this.tempPos);
+          targetObj.getWorldQuaternion(this.tempQuat);
+
+          // Interpolar posición
+          obj.position.lerp(this.tempPos, this.data.lerpPosition);
+          // Interpolar rotación (slerp)
+          obj.quaternion.slerp(this.tempQuat, this.data.lerpRotation);
+        }
+      });
+
       document.addEventListener("DOMContentLoaded", () => {
         const sceneEl = document.querySelector("a-scene");
         const targetEl = document.querySelector("#target-0");
@@ -96,8 +143,10 @@ missTolerance: 8;
         const unlockVideo = () => {
           if (userInteracted) return;
           userInteracted = true;
+
           // Intento de “desbloqueo silencioso” (iOS)
-          videoEl.play()
+          videoEl
+            .play()
             .then(() => {
               videoEl.pause();
               console.log("Video desbloqueado por interacción de usuario.");
