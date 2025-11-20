@@ -1,25 +1,106 @@
-
-<html>
+<!DOCTYPE html>
+<html lang="es">
   <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, user-scalable=no"
+    />
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+      }
+    </style>
   </head>
   <body>
-    <a-scene mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+    <a-scene
+      mindar-image="imageTargetSrc: assets/targets.mind; filterMinCF: 0.001; filterBeta: 0.01; warmupTolerance: 1; missTolerance: 2;"
+      color-space="sRGB"
+      renderer="colorManagement: true, physicallyCorrectLights"
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false">
+
       <a-assets>
-	<img id="card" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png" />
-	<a-asset-item id="avatarModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/softmind/scene.gltf"></a-asset-item>
+        <!-- Imagen del target (solo referencia visual) -->
+       
+        <!-- Tu video -->
+        <video
+          id="cardVideo"
+          src="assets/Circo.mp4"
+          preload="auto"
+          loop
+          muted
+          playsinline
+          webkit-playsinline
+          crossorigin="anonymous">
+        </video>
       </a-assets>
 
+      <!-- Cámara controlada por MindAR -->
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <a-entity mindar-image-target="targetIndex: 0">
-        <a-plane src="#card" position="0 0 0" height="0.552" width="1" rotation="0 0 0"></a-plane>
-        <a-gltf-model rotation="0 0 0 " position="0 0 0.1" scale="0.005 0.005 0.005" src="#avatarModel"
-          animation="property: position; to: 0 0.1 0.1; dur: 1000; easing: easeInOutQuad; loop: true; dir: alternate"
-        >
+      <!-- Entidad anclada al target -->
+      <a-entity id="target-0" mindar-image-target="targetIndex: 0">
+        <!-- Plano del target (opcional) -->
+        <a-plane
+          src="#card"
+          position="0 0 0"
+          height="0.552"
+          width="1"
+          rotation="0 0 0">
+        </a-plane>
+
+        <!-- Plano del video por encima del target -->
+        <a-video
+          id="cardVideoPlane"
+          src="#cardVideo"
+          position="0 0 0.01"
+          width="1"
+          height="0.552"
+          rotation="0 0 0">
+        </a-video>
       </a-entity>
     </a-scene>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const sceneEl = document.querySelector("a-scene");
+        const targetEl = document.querySelector("#target-0");
+        const videoEl = document.querySelector("#cardVideo");
+
+        // Para iOS/Android: desbloquear reproducción tras interacción
+        let userInteracted = false;
+        const unlockVideo = () => {
+          userInteracted = true;
+          window.removeEventListener("click", unlockVideo);
+          window.removeEventListener("touchstart", unlockVideo);
+        };
+        window.addEventListener("click", unlockVideo);
+        window.addEventListener("touchstart", unlockVideo);
+
+        sceneEl.addEventListener("loaded", () => {
+          // Cuando se detecta el target
+          targetEl.addEventListener("targetFound", () => {
+            if (userInteracted && videoEl.paused) {
+              videoEl.play().catch((e) => {
+                console.warn("No se pudo reproducir el video:", e);
+              });
+            } else if (!userInteracted) {
+              console.log("Toca la pantalla una vez para habilitar el video.");
+            }
+          });
+
+          // Cuando se pierde el target
+          targetEl.addEventListener("targetLost", () => {
+            if (!videoEl.paused) videoEl.pause();
+          });
+        });
+      });
+    </script>
   </body>
 </html>
